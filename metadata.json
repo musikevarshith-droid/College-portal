@@ -1,0 +1,8 @@
+{
+  "name": "FAMES  GROUP  ",
+  "description": "A comprehensive student dashboard for university life featuring biometric attendance, bus route tracking, exam alerts, and club management.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

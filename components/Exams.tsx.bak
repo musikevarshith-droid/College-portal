@@ -1,0 +1,242 @@
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { Exam } from '../types';
+
+interface Props {
+  userRole: 'student' | 'admin';
+}
+
+const Exams: React.FC<Props> = ({ userRole }) => {
+  const [exams, setExams] = useState<Exam[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingExam, setEditingExam] = useState<Exam | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    date: '',
+    subject: '',
+    description: ''
+  });
+
+  // Load Data
+  useEffect(() => {
+    const savedExams = localStorage.getItem('fames_exams');
+    if (savedExams) {
+      setExams(JSON.parse(savedExams));
+    } else {
+      // Initial dummy data
+      const initial: Exam[] = [
+        { id: '1', name: 'Midterm Exam', date: '2026-03-15', subject: 'Mathematics', description: 'Covers chapters 1-5' },
+        { id: '2', name: 'Final Project Submission', date: '2026-04-10', subject: 'Computer Science', description: 'Submit via portal' },
+        { id: '3', name: 'Unit Test 2', date: '2026-02-25', subject: 'Physics', description: 'Quantum mechanics basics' },
+      ];
+      setExams(initial);
+      localStorage.setItem('fames_exams', JSON.stringify(initial));
+    }
+  }, []);
+
+  // Persist Data
+  useEffect(() => {
+    if (exams.length > 0) {
+      localStorage.setItem('fames_exams', JSON.stringify(exams));
+    }
+  }, [exams]);
+
+  const sortedExams = useMemo(() => {
+    return [...exams].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [exams]);
+
+  const handleAddExam = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newExam: Exam = {
+      id: Date.now().toString(),
+      ...formData
+    };
+    setExams([...exams, newExam]);
+    setIsAdding(false);
+    setFormData({ name: '', date: '', subject: '', description: '' });
+    triggerToast("Exam added successfully!");
+  };
+
+  const handleEditExam = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExam) return;
+    const updatedExams = exams.map(ex => ex.id === editingExam.id ? { ...editingExam, ...formData } : ex);
+    setExams(updatedExams);
+    setEditingExam(null);
+    setFormData({ name: '', date: '', subject: '', description: '' });
+    triggerToast("Exam updated successfully!");
+  };
+
+  const handleDeleteExam = (id: string) => {
+    if (window.confirm("Are you sure you want to delete this exam?")) {
+      setExams(exams.filter(ex => ex.id !== id));
+      triggerToast("Exam deleted");
+    }
+  };
+
+  const triggerToast = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(null), 3000);
+  };
+
+  const openEdit = (exam: Exam) => {
+    setEditingExam(exam);
+    setFormData({
+      name: exam.name,
+      date: exam.date,
+      subject: exam.subject,
+      description: exam.description || ''
+    });
+  };
+
+  const openAdd = () => {
+    setIsAdding(true);
+    setFormData({ name: '', date: '', subject: '', description: '' });
+  };
+
+  return (
+    <div className="p-4 space-y-6 animate-in fade-in duration-500 pb-32">
+      {/* Toast Notification */}
+      {successMsg && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] bg-primary text-white px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-2xl animate-in slide-in-from-top-4">
+          {successMsg}
+        </div>
+      )}
+
+      <header className="flex justify-between items-end">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-black tracking-tight">Exams</h2>
+          <p className="text-xs opacity-50 uppercase tracking-widest font-bold">Upcoming academic assessments</p>
+        </div>
+        {userRole === 'admin' && (
+          <button 
+            onClick={openAdd}
+            className="w-12 h-12 bg-primary text-white rounded-2xl shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined text-2xl font-black">add</span>
+          </button>
+        )}
+      </header>
+
+      {/* Exam List */}
+      <div className="space-y-4">
+        {sortedExams.length === 0 ? (
+          <div className="text-center py-16 bg-card-dark/50 rounded-[2.5rem] border border-dashed border-white/10">
+            <span className="material-symbols-outlined text-5xl opacity-10 mb-2">event_busy</span>
+            <p className="text-[10px] font-black uppercase opacity-20 tracking-widest">No exams scheduled</p>
+          </div>
+        ) : (
+          sortedExams.map(exam => (
+            <div key={exam.id} className="bg-card-dark rounded-3xl p-5 border border-white/5 transition-all hover:border-primary/30 group">
+              <div className="flex justify-between items-start mb-3">
+                <div className="space-y-1">
+                  <span className="text-[8px] font-black text-primary uppercase tracking-widest px-2 py-0.5 bg-primary/10 rounded-full border border-primary/20">
+                    {exam.subject}
+                  </span>
+                  <h4 className="text-lg font-black leading-tight text-white">{exam.name}</h4>
+                </div>
+                {userRole === 'admin' && (
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => openEdit(exam)}
+                      className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-primary hover:bg-white/10 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-base">edit</span>
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteExam(exam.id)}
+                      className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-red-500 hover:bg-red-500/10 transition-all"
+                    >
+                      <span className="material-symbols-outlined text-base">delete</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 mb-3 opacity-60">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-base">calendar_month</span>
+                  <span className="text-[11px] font-bold">{exam.date}</span>
+                </div>
+              </div>
+
+              {exam.description && (
+                <p className="text-[11px] opacity-50 leading-relaxed italic">
+                  {exam.description}
+                </p>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Add/Edit Modal */}
+      {(isAdding || editingExam) && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-background-dark/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="w-full max-w-sm bg-card-dark rounded-[2.5rem] border border-white/10 p-8 shadow-2xl space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-black">{isAdding ? 'Add New Exam' : 'Edit Exam'}</h3>
+              <button 
+                onClick={() => { setIsAdding(false); setEditingExam(null); }} 
+                className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center"
+              >
+                <span className="material-symbols-outlined text-lg">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={isAdding ? handleAddExam : handleEditExam} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase opacity-40 ml-1">Exam Name</label>
+                <input 
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-primary"
+                  value={formData.name}
+                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  placeholder="e.g. Final Semester Exam"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase opacity-40 ml-1">Subject</label>
+                <input 
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-primary"
+                  value={formData.subject}
+                  onChange={e => setFormData({...formData, subject: e.target.value})}
+                  placeholder="e.g. Mathematics"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase opacity-40 ml-1">Date</label>
+                <input 
+                  type="date"
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-primary"
+                  value={formData.date}
+                  onChange={e => setFormData({...formData, date: e.target.value})}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase opacity-40 ml-1">Description (Optional)</label>
+                <textarea 
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 px-4 text-xs font-bold outline-none focus:border-primary min-h-[80px] resize-none"
+                  value={formData.description}
+                  onChange={e => setFormData({...formData, description: e.target.value})}
+                  placeholder="Additional details..."
+                />
+              </div>
+
+              <button type="submit" className="w-full bg-primary text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-primary/20 mt-4 active:scale-95 transition-all">
+                {isAdding ? 'Create Exam' : 'Save Changes'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Exams;
